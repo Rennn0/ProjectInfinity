@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Infinite.White.Src.Networking.Client;
 using Infinite.White.Src.Networking.Server;
 using Infinite.White.Src.Networking.Shared;
@@ -21,19 +20,21 @@ public static class RpcExample
     {
         public TestServer(RpcServerCreationOptions options) : base(options)
         { }
+
+        protected override Res HandleRequest(RpcMessage<Req> message)
+        {
+            return new Res { Response = message.PayloadFrame + DateTime.Now.ToString() };
+        }
     }
     public static void RunServer()
     {
-        Task.Factory.StartNew(() =>
-        {
-            Console.WriteLine("running server");
-            TestServer server = new TestServer(new RpcServerCreationOptions("localhost", 5555, false));
-            server.MessageReceived += (object? sender, RpcMessage<Req> message) =>
-            {
-                Console.WriteLine("[RunServer] req received, iden {0}, payload {1}", message.IdentityFrame, message.PayloadFrame?.Request);
-            };
-            server.Start();
-        });
+        Console.WriteLine("running server");
+        TestServer server = new TestServer(new RpcServerCreationOptions("localhost", 5555, false));
+        // server.MessageReceived += (object? sender, RpcMessage<Req> message) =>
+        // {
+        //     Console.WriteLine("[RunServer] req received, iden {0}, payload {1}", message.IdentityFrame, message.PayloadFrame?.Request);
+        // };
+        server.Start();
     }
 
     public static void RunClinet()
