@@ -2,4 +2,4 @@
 
 RpcExample.RunClinet();
 
-Console.ReadKey();
+Console.Read();

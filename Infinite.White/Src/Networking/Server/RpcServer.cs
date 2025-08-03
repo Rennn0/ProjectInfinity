@@ -19,14 +19,10 @@ namespace Infinite.White.Src.Networking.Server
         {
             this.socket = new ThreadLocal<ResponseSocket>(() => GetSocket(ref options), false);
             this.msgCounter = 0;
-            new Timer(
-                _ => Console.WriteLine(this.msgCounter),
-                null,
-                TimeSpan.FromSeconds(1),
-                TimeSpan.FromSeconds(5));
-            StartServer();
+            if (options.RunImmediate)
+                StartServer();
         }
-
+        public void Start() => StartServer();
         protected virtual void StartServer()
         {
             ArgumentNullException.ThrowIfNull(socket.Value);
@@ -37,14 +33,9 @@ namespace Infinite.White.Src.Networking.Server
                     List<byte[]> frames = this.socket.Value.ReceiveMultipartBytes();
                     Console.WriteLine("[StartServer] received {0} frame", frames.Count);
                     if (frames.Count < 3) throw new RpcServerBadFramesException(frames.Count);
-                    string identity = Encoding.UTF8.GetString(frames[0]);
-                    string payload = Encoding.UTF8.GetString(frames[2]);
-                    // RpcMessage<TRequest> message = GetMessage(frames);
-                    Console.WriteLine("[StartServer] has message, {0}, {1}", identity, payload);
-                    MessageReceived?.Invoke(this, new RpcMessage<TRequest> { IdentityFrame = identity, PayloadFrame = default });
-                    Console.WriteLine("[StartServer] invoked event");
-                    SendResponse(new RpcMessage<TRequest> { IdentityFrame = identity, PayloadFrame = default });
-                    Console.WriteLine("[StartServer] responding");
+                    RpcMessage<TRequest> message = GetMessage(frames);
+                    MessageReceived?.Invoke(this, message);
+                    SendResponse(message);
                 }
                 catch (System.Exception e)
                 {
@@ -56,6 +47,7 @@ namespace Infinite.White.Src.Networking.Server
         protected virtual void SendResponse(RpcMessage<TRequest> message)
         {
             ArgumentNullException.ThrowIfNull(this.socket.Value);
+            ArgumentNullException.ThrowIfNull(message.IdentityFrame);
 
             Interlocked.Increment(ref this.msgCounter);
             Console.WriteLine("[SendResponse] empty handling {0} msg", this.msgCounter);
@@ -63,15 +55,10 @@ namespace Infinite.White.Src.Networking.Server
             TResponse payload = Activator.CreateInstance<TResponse>();
 
             NetMQMessage response = new NetMQMessage();
-            // byte[] identityFrame = MessagePackSerializer.Serialize(message.IdentityFrame);
-            // byte[] payloadFrame = MessagePackSerializer.Serialize(payload);
-            // response.Append(identityFrame);
-            // response.AppendEmptyFrame();
-            // response.Append(payloadFrame);
-            response.Append(Encoding.UTF8.GetBytes(message.IdentityFrame!));
+            byte[] payloadFrame = MessagePackSerializer.Serialize(payload);
+            response.Append(message.IdentityFrame);
             response.AppendEmptyFrame();
-            response.Append(Encoding.UTF8.GetBytes("xui tebe"));
-
+            response.Append(payloadFrame);
             this.socket.Value.SendMultipartMessage(response);
         }
         protected virtual string GetConnectionString(ref RpcServerCreationOptions options)
@@ -94,9 +81,8 @@ namespace Infinite.White.Src.Networking.Server
         {
             RpcMessage<TRequest> message = new RpcMessage<TRequest>
             {
-                IdentityFrame = MessagePackSerializer.Deserialize<string>(frames[0]),
-                PayloadFrame = default
-                // PayloadFrame = MessagePackSerializer.Deserialize<TRequest>(frames[2])
+                IdentityFrame = Encoding.UTF8.GetString(frames[0]),
+                PayloadFrame = MessagePackSerializer.Deserialize<TRequest>(frames[2])
             };
 
             return message;

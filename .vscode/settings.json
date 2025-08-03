@@ -3,4 +3,5 @@
     "files.autoSaveDelay": 2000,
 
     "editor.formatOnSave": true,
+    "dotnet.server.useOmnisharp": true
 }
