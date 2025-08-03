@@ -24,7 +24,6 @@ namespace Infinite.White.Src.Networking.Client
                 message.AppendEmptyFrame();
                 message.Append(payloadFrame);
                 // Console.WriteLine("[RpcClient] sending {0}", message.FrameCount);
-
                 socket.SendMultipartMessage(message);
                 NetMQMessage xx = socket.ReceiveMultipartMessage();
                 string iden = Encoding.UTF8.GetString(xx[0].Buffer);

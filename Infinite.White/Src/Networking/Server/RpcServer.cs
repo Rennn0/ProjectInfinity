@@ -14,11 +14,14 @@ namespace Infinite.White.Src.Networking.Server
     {
         public EventHandler<RpcMessage<TRequest>>? MessageReceived;
         private readonly ThreadLocal<ResponseSocket> socket;
+        private readonly ThreadLocal<NetMQPoller> poller;
         private ulong msgCounter;
         protected RpcServer(RpcServerCreationOptions options)
         {
             this.socket = new ThreadLocal<ResponseSocket>(() => GetSocket(ref options), false);
+            this.poller = new ThreadLocal<NetMQPoller>(() => new NetMQPoller(), false);
             this.msgCounter = 0;
+
             if (options.RunImmediate)
                 StartServer();
         }
@@ -27,7 +30,13 @@ namespace Infinite.White.Src.Networking.Server
         protected virtual void StartServer()
         {
             ArgumentNullException.ThrowIfNull(socket.Value);
-            while (true)
+            ArgumentNullException.ThrowIfNull(poller.Value);
+
+            // #TODO remove identity _ rpc must be simple
+            // #TODO message class serialization
+            // #TODO finish async
+
+            socket.Value.ReceiveReady += async (sender, args) =>
             {
                 try
                 {
@@ -36,13 +45,37 @@ namespace Infinite.White.Src.Networking.Server
                     RpcMessage<TRequest> message = GetMessage(frames);
                     MessageReceived?.Invoke(this, message);
                     SendResponse(message);
+                    Console.WriteLine("[Server] total {0} requests", msgCounter);
+
+                    await Task.Delay(1000);
                 }
                 catch (System.Exception e)
                 {
                     Console.WriteLine(e.Message);
                     Thread.Sleep(10000);
                 }
-            }
+            };
+
+            poller.Value.Add(socket.Value);
+            poller.Value.Run();
+
+            // while (true)
+            // {
+            //     try
+            //     {
+            //         List<byte[]> frames = this.socket.Value.ReceiveMultipartBytes();
+            //         if (frames.Count < 3) throw new RpcServerBadFramesException(frames.Count);
+            //         RpcMessage<TRequest> message = GetMessage(frames);
+            //         MessageReceived?.Invoke(this, message);
+            //         SendResponse(message);
+            //         Console.WriteLine("[Server] total {0} requests", msgCounter);
+            //     }
+            //     catch (System.Exception e)
+            //     {
+            //         Console.WriteLine(e.Message);
+            //         Thread.Sleep(10000);
+            //     }
+            // }
         }
         protected virtual void SendResponse(RpcMessage<TRequest> message)
         {
