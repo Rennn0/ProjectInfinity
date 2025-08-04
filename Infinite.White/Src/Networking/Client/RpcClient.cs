@@ -8,6 +8,7 @@ namespace Infinite.White.Src.Networking.Client
 {
     public class RpcClient<TRequest, TResponse>
     {
+        // #TODO finish client
         public RpcClient(string address, TRequest req)
         {
             Thread.Sleep(2000);

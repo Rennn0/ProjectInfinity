@@ -112,8 +112,8 @@ namespace Infinite.White.Src.Networking.Server
         {
             RpcMessage<TRequest> message = new RpcMessage<TRequest>
             {
-                IdentityFrame = Encoding.UTF8.GetString(frames[0]),
-                PayloadFrame = MessagePackSerializer.Deserialize<TRequest>(frames[2])
+                IdentityFrame = Encoding.UTF8.GetString(frames[FrameOffset.Identity]),
+                PayloadFrame = MessagePackSerializer.Deserialize<TRequest>(frames[FrameOffset.Payload])
             };
             return message;
         }
