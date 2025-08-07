@@ -112,10 +112,80 @@ namespace Infinite.White.Src.Networking.Server
         {
             RpcMessage<TRequest> message = new RpcMessage<TRequest>
             {
-                IdentityFrame = Encoding.UTF8.GetString(frames[FrameOffset.Identity]),
-                PayloadFrame = MessagePackSerializer.Deserialize<TRequest>(frames[FrameOffset.Payload])
+                IdentityFrame = Encoding.UTF8.GetString(frames[RpcFrameOffset.Identity]),
+                PayloadFrame = MessagePackSerializer.Deserialize<TRequest>(frames[RpcFrameOffset.Payload])
             };
+
+            IFactory<ISomeFactoryClass> sf = new SomeFactory();
+            ISomeFactoryClass sfc1 = sf.Create<SomeFClass1>();
+            ISomeFactoryClass sfc2 = sf.Create<SomeFClass1>();
+            // ISomeFactoryClass notsfc = sf.Create<NotSomeFClass1>();
+
+
             return message;
         }
     }
+
+    public interface IFactory<TBase>
+    {
+        ValueTask<TBase> CreateAsync<TImplementation>() where TImplementation : class, TBase;
+        TBase Create<TImplementation>() where TImplementation : class, TBase;
+    }
+    public interface ISomeFactoryClass
+    {
+        Task DoSomeShitAsync();
+    }
+    public class SomeFactory : IFactory<ISomeFactoryClass>
+    {
+        private readonly Dictionary<Type, Func<ISomeFactoryClass>> activators = new()
+        {
+            {typeof(SomeFClass1),() => new SomeFClass1()},
+            {typeof(SomeFClass2),() => new SomeFClass2()},
+        };
+
+        private readonly Dictionary<Type, Func<ValueTask<ISomeFactoryClass>>> asyncActivators = new()
+        {
+            {typeof(SomeFClass1),() => new ValueTask<ISomeFactoryClass>(new SomeFClass1())},
+            {typeof(SomeFClass2),() => new ValueTask<ISomeFactoryClass>(new SomeFClass2())},
+        };
+
+        ISomeFactoryClass IFactory<ISomeFactoryClass>.Create<TImplementation>()
+        => activators.
+            TryGetValue(typeof(TImplementation), out Func<ISomeFactoryClass>? activator) ?
+                activator() :
+                throw new NotSupportedException();
+
+
+        ValueTask<ISomeFactoryClass> IFactory<ISomeFactoryClass>.CreateAsync<TImplementation>()
+        => asyncActivators.
+            TryGetValue(typeof(TImplementation), out Func<ValueTask<ISomeFactoryClass>>? activator) ?
+                activator() :
+                throw new NotSupportedException();
+    }
+
+
+    public class SomeFClass1 : ISomeFactoryClass
+    {
+        public Task DoSomeShitAsync()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class SomeFClass2 : ISomeFactoryClass
+    {
+        public Task DoSomeShitAsync()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class NotSomeFClass1
+    {
+        public Task DoSomeShitAsync()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
 }
